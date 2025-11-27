@@ -11,9 +11,9 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
 @Component
-public class tokenService {
+public class TokenService {
 
-    private static final Logger logger = LoggerFactory.getLogger(tokenService.class);
+    private static final Logger logger = LoggerFactory.getLogger(TokenService.class);
 
     @Value("${api.security.token.secret}")
     private String secret;
