@@ -15,7 +15,7 @@ public class TokenService {
 
     private static final Logger logger = LoggerFactory.getLogger(TokenService.class);
 
-    @Value("${api.security.token.secret}")
+    @Value("${jwt-secret-key}")
     private String secret;
 
 
