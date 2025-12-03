@@ -24,14 +24,14 @@ public class SecurityConfig {
         .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(
-                "v3/api-docs/**",
+                "/v3/api-docs/**",
                 "/swagger-ui/**",
                 "/swagger-ui.html"
             ).permitAll()
               .anyRequest().authenticated()
         );
         http.addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);
-        
+
         return http.build();
     }
 
