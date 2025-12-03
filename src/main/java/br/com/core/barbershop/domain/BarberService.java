@@ -35,7 +35,7 @@ public class BarberService {
 
     @NotBlank(message = "the description cannot be empty")
     @Column(nullable = false)
-    private String Description;
+    private String description;
 
     @NotNull(message = "the value cannot be null")
     @Min(value = 0, message = "price cannot be negative" )
