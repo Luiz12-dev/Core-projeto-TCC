@@ -47,7 +47,7 @@ public class Client {
     
     @OneToMany(mappedBy = "client", fetch = FetchType.LAZY)
     @JsonIgnore
-    private List<Appointments> histories;
+    private List<Appointment> histories;
 
     private String address;
 
