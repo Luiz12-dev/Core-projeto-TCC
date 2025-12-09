@@ -13,6 +13,8 @@ public record AppointmentRequestDto(
     @NotNull
     UUID serviceId,
 
+    String observation,
+
     @NotNull
     @Future(message = "The appointment, cannot be on the past")
     LocalDateTime dateTime
