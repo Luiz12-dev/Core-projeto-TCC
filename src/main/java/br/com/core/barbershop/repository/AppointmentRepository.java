@@ -10,5 +10,4 @@ import br.com.core.barbershop.domain.Appointment;
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID>{
 
     List<Appointment> findByClientID(UUID id);
-
 }
