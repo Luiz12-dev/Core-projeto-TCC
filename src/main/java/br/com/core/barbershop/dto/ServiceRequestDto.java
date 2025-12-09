@@ -14,7 +14,7 @@ public record ServiceRequestDto(
 
     @NotNull(message = "The value cannot be null")
     @Min(value = 0, message = "The value cannot be negative")
-    BigDecimal value,
+    BigDecimal price,
 
     @NotNull(message = "The duration cannot be null")
     @Min(value = 1, message = "The duration cannot be under 1 min")
