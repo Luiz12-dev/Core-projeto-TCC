@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import br.com.core.barbershop.domain.Client;
 
-public interface ClientRepository extends JpaRepository<ClientRepository, UUID>{
+public interface ClientRepository extends JpaRepository<Client, UUID>{
     Optional<Client> findByEmail(String email);
 }
