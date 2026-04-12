@@ -84,7 +84,7 @@ public class Appointment {
     @PrePersist
     public void PrePersist(){
         if(this.status== null){
-            this.status = AppointmentStatus.PENDENT;
+            this.status = AppointmentStatus.PENDING;
         }
     }
 

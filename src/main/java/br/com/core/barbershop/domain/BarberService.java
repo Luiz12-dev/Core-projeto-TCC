@@ -13,9 +13,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -37,30 +34,27 @@ public class BarberService {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @NotBlank(message = "The service name cannot be empty")
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 100)
     private String serviceName;
 
-    @NotBlank(message = "the description cannot be empty")
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
-    @NotNull(message = "the value cannot be null")
-    @Min(value = 0, message = "price cannot be negative" )
-    @Column(scale = 2, precision = 10)
+    @Column(nullable = false, scale = 2, precision = 10)
     private BigDecimal price;
-    
-    @NotNull(message = "duration cannot be null")
-    @Min(value = 1, message = "duration must be at least 1 minut")
+
+    @Column(name = "duration_min", nullable = false)
     private Integer durationMin;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean active = true;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "update_at")
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
 }
