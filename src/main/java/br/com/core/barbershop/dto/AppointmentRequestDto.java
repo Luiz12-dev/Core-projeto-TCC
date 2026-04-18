@@ -7,17 +7,13 @@ import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 
 public record AppointmentRequestDto(
-    @NotNull
-    UUID clientId,
-
-    @NotNull
+    @NotNull(message = "Service ID is required")
     UUID serviceId,
 
     String observation,
 
-    @NotNull
-    @Future(message = "The appointment, cannot be on the past")
+    @NotNull(message = "Date and time are required")
+    @Future(message = "Appointment must be in the future")
     LocalDateTime dateTime
 ) {
-
 }
