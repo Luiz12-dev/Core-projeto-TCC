@@ -1,9 +1,9 @@
 package br.com.core.barbershop.enuns;
 
 public enum AppointmentStatus {
-    SCHEDULED,
+    PENDING,
     CONFIRMED,
-    CANCELLED,
-    CONCLUED,
-    PENDENT
+    IN_PROGRESS,
+    COMPLETED,
+    CANCELLED
 }
