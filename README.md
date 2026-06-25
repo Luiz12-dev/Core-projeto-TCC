@@ -295,6 +295,54 @@ curl "http://localhost:8080/api/appointments/revenue?month=4&year=2026" \
 }
 ```
 
+  
+
+---
+
+  
+
+## ✅ Testes
+
+  
+
+O projeto conta com **67 testes automatizados** organizados em duas categorias:
+
+  
+
+### Testes Unitários (27 testes) — Mockito + AssertJ
+
+  
+
+| Classe | Testes | Cobertura |
+
+|--------|--------|-----------|
+
+| `AppointmentServiceTest` | 18 | State Machine (8 transições), cancelamento (3), receita (2), histórico (2), agenda do dia (1), busca por ID (2) |
+
+| `BarberServiceServiceTest` | 9 | CRUD completo (create, findAll, findById, update, deactivate) + erro duplicado + not found |
+
+  
+
+### Testes de Integração (40 testes) — `@SpringBootTest` + MockMvc + H2
+
+  
+
+| Classe | Testes | Cobertura |
+
+|--------|--------|-----------|
+
+| `AppointmentIntegrationTest` | 18 | RBAC (7), State Machine (5), cancelamento (3), receita (1), agenda do dia (1), 401 sem auth (1) |
+
+| `BarberServiceIntegrationTest` | 13 | CRUD (create, list, findById, update, soft delete), RBAC (owner/client/401), duplicata (409), validação (400) |
+
+| `BlockedPeriodIntegrationTest` | 5 | Create, list, delete + RBAC |
+
+| `BusinessHoursIntegrationTest` | 4 | Create, list, update + RBAC |
+
+  
+
+---
+
 ## ⚙️ Como Executar
 
 ### Pré-requisitos

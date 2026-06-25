@@ -59,6 +59,7 @@ public class SecurityFilter extends OncePerRequestFilter {
                 List<String> roles = tokenService.getRolesFromToken(token);
 
                 List<SimpleGrantedAuthority> authorities = roles.stream()
+                    .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
                     .map(SimpleGrantedAuthority::new)
                     .toList();
 

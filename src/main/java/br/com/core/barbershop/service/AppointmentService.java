@@ -58,9 +58,13 @@ public class AppointmentService {
         validator.validate(req);
 
         Client client = clientRepository.findByEmail(authenticatedEmail)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Client profile not found for email: " + authenticatedEmail
-                                + ". Please create your profile first."));
+                .orElseGet(() -> {
+                    Client newClient = new Client();
+                    newClient.setEmail(authenticatedEmail);
+                    newClient.setUsername(authenticatedEmail); // Defaulting to email
+                    newClient.setPhone("00000000000"); // Default phone, frontend should ideally provide this
+                    return clientRepository.save(newClient);
+                });
 
         BarberService service = serviceRepository.findById(req.serviceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found with ID: " + req.serviceId()));
@@ -81,8 +85,13 @@ public class AppointmentService {
     @Transactional(readOnly = true)
     public List<AppointmentResponseDto> getMyHistory(String authenticatedEmail) {
         Client client = clientRepository.findByEmail(authenticatedEmail)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Client profile not found for email: " + authenticatedEmail));
+                .orElseGet(() -> {
+                    Client newClient = new Client();
+                    newClient.setEmail(authenticatedEmail);
+                    newClient.setUsername(authenticatedEmail);
+                    newClient.setPhone("00000000000");
+                    return clientRepository.save(newClient);
+                });
 
         return appointmentRepository.findByClientIdOrderByDateTimeDesc(client.getId())
                 .stream()
