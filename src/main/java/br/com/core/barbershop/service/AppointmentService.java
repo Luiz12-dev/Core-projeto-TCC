@@ -85,19 +85,16 @@ public class AppointmentService {
 
     @Transactional(readOnly = true)
     public List<AppointmentResponseDto> getMyHistory(String authenticatedEmail) {
-        Client client = clientRepository.findByEmail(authenticatedEmail)
-                .orElseGet(() -> {
-                    Client newClient = new Client();
-                    newClient.setEmail(authenticatedEmail);
-                    newClient.setUsername(authenticatedEmail);
-                    newClient.setPhone("00000000000");
-                    return clientRepository.save(newClient);
-                });
-
-        return appointmentRepository.findByClientIdOrderByDateTimeDesc(client.getId())
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        // Cliente que nunca agendou nao tem historico — e nao deve ser criado aqui.
+        // A auto-provisao do Client acontece em create(), que e o momento em que
+        // ele passa a existir no dominio do Core. Escrever numa transacao readOnly
+        // era o bug original.
+        return clientRepository.findByEmail(authenticatedEmail)
+                .map(client -> appointmentRepository.findByClientIdOrderByDateTimeDesc(client.getId())
+                        .stream()
+                        .map(this::toResponse)
+                        .toList())
+                .orElseGet(List::of);
     }
 
     @Transactional(readOnly = true)

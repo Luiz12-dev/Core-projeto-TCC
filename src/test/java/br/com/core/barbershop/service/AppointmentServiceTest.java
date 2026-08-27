@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -326,13 +327,15 @@ class AppointmentServiceTest {
         }
 
         @Test
-        @DisplayName("Should throw when client profile not found")
-        void shouldThrowWhenClientNotFound() {
+        @DisplayName("Should return empty history when client has never booked")
+        void shouldReturnEmptyWhenClientNotFound() {
             when(clientRepository.findByEmail("unknown@email.com")).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> appointmentService.getMyHistory("unknown@email.com"))
-                    .isInstanceOf(ResourceNotFoundException.class)
-                    .hasMessageContaining("Client profile not found");
+            List<AppointmentResponseDto> result = appointmentService.getMyHistory("unknown@email.com");
+
+            assertThat(result).isEmpty();
+            // E nao cria registro fantasma: o metodo e readOnly.
+            verify(clientRepository, never()).save(any());
         }
     }
 
