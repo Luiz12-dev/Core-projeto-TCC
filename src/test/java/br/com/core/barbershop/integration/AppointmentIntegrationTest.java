@@ -1,5 +1,6 @@
 package br.com.core.barbershop.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -280,7 +281,7 @@ class AppointmentIntegrationTest {
 
                 @Test
                 @DisplayName("CLIENT should cancel own appointment — 200")
-                @WithMockUser(roles = "CLIENT")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
                 void clientShouldCancel() throws Exception {
                         Appointment app = createAppointmentInDb(AppointmentStatus.PENDING,
                                         LocalDateTime.now().plusDays(1).withHour(10));
@@ -313,6 +314,21 @@ class AppointmentIntegrationTest {
                                         .andExpect(status().isBadRequest())
                                         .andExpect(jsonPath("$.message")
                                                         .value("Cannot cancel a completed appointment"));
+                }
+
+                @Test
+                @DisplayName("Client should NOT cancel another client's appointment — 403")
+                @WithMockUser(username = "intruso@email.com", roles = "CLIENT")
+                void clientShouldNotCancelOthersAppointment() throws Exception {
+                        Appointment alheio = createAppointmentInDb(AppointmentStatus.CONFIRMED,
+                                        LocalDateTime.now().plusDays(1).withHour(10));
+
+                        mockMvc.perform(patch("/api/appointments/" + alheio.getId() + "/cancel"))
+                                        .andExpect(status().isForbidden());
+
+                        // E o agendamento continua ativo.
+                        assertThat(appointmentRepository.findById(alheio.getId()).orElseThrow().getStatus())
+                                        .isEqualTo(AppointmentStatus.CONFIRMED);
                 }
         }
 

@@ -104,11 +104,16 @@ public class AppointmentController {
         return ResponseEntity.ok(updated);
     }
 
-    @Operation(summary = "Cancel appointment", description = "CLIENT or OWNER — cancels an appointment (cannot cancel completed)")
+    @Operation(summary = "Cancel appointment", description = "OWNER cancels any; CLIENT cancels only their own (cannot cancel completed)")
     @PatchMapping("/{id}/cancel")
     @PreAuthorize("hasAnyRole('CLIENT', 'OWNER')")
-    public ResponseEntity<AppointmentResponseDto> cancel(@PathVariable UUID id) {
-        AppointmentResponseDto cancelled = appointmentService.cancelAppointment(id);
+    public ResponseEntity<AppointmentResponseDto> cancel(
+            @PathVariable UUID id,
+            Principal principal,
+            Authentication authentication) {
+
+        AppointmentResponseDto cancelled =
+                appointmentService.cancelAppointment(id, principal.getName(), isOwner(authentication));
         return ResponseEntity.ok(cancelled);
     }
 

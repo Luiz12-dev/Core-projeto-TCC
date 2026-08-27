@@ -222,7 +222,7 @@ class AppointmentServiceTest {
             when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
             when(appointmentRepository.save(any())).thenReturn(appointment);
 
-            appointmentService.cancelAppointment(appointment.getId());
+            appointmentService.cancelAppointment(appointment.getId(), "test@email.com", false);
 
             assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
         }
@@ -236,7 +236,7 @@ class AppointmentServiceTest {
 
             when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
 
-            assertThatThrownBy(() -> appointmentService.cancelAppointment(appointment.getId()))
+            assertThatThrownBy(() -> appointmentService.cancelAppointment(appointment.getId(), "test@email.com", false))
                     .isInstanceOf(BusinessRuleException.class)
                     .hasMessageContaining("Cannot cancel a completed appointment");
         }
@@ -250,7 +250,7 @@ class AppointmentServiceTest {
 
             when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
 
-            assertThatThrownBy(() -> appointmentService.cancelAppointment(appointment.getId()))
+            assertThatThrownBy(() -> appointmentService.cancelAppointment(appointment.getId(), "test@email.com", false))
                     .isInstanceOf(BusinessRuleException.class)
                     .hasMessageContaining("already cancelled");
         }

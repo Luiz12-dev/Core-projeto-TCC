@@ -191,9 +191,15 @@ public class AppointmentService {
     }
 
     @Transactional
-    public AppointmentResponseDto cancelAppointment(UUID id) {
+    public AppointmentResponseDto cancelAppointment(UUID id, String requesterEmail, boolean isOwner) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
+
+        // A checagem de posse vem antes das regras de estado: caso contrario a
+        // mensagem de erro vazaria que o agendamento alheio ja esta concluido.
+        if (!isOwner && !appointment.getClient().getEmail().equals(requesterEmail)) {
+            throw new AccessDeniedException("You can only cancel your own appointments");
+        }
 
         if (appointment.getStatus() == AppointmentStatus.COMPLETED) {
             throw new BusinessRuleException("Cannot cancel a completed appointment");
