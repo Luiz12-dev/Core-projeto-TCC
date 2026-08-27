@@ -22,7 +22,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -56,7 +55,10 @@ public class Appointment {
     @ManyToOne(fetch = FetchType.LAZY)
     private BarberService service;
 
-    @Future(message = "Appointment must be on the future")
+    // Sem @Future aqui: o Hibernate revalida a entidade em todo update, e isso
+    // impediria concluir/cancelar um agendamento depois do horario marcado.
+    // A regra "tem que ser no futuro" vive na entrada: AppointmentRequestDto
+    // tem @Future e AppointmentValidator exige 30 min de antecedencia.
     @Column(name = "date_time", nullable = false)
     @NotNull(message = "Data and time are required")
     private LocalDateTime dateTime;

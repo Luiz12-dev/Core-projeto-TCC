@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import br.com.core.barbershop.domain.BarberService;
 import br.com.core.barbershop.dto.ServiceRequestDto;
+import br.com.core.barbershop.repository.AppointmentRepository;
 import br.com.core.barbershop.repository.BarberServiceRepository;
 
 @SpringBootTest
@@ -42,8 +43,16 @@ class BarberServiceIntegrationTest {
     @Autowired
     private BarberServiceRepository serviceRepository;
 
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
     @BeforeEach
     void setUp() {
+        // appointments tem FK para services: limpar os dependentes primeiro,
+        // senao sobra agendamento de outra classe de teste travando o delete.
+        // As classes de integracao compartilham o mesmo contexto Spring e a
+        // mesma instancia H2.
+        appointmentRepository.deleteAll();
         serviceRepository.deleteAll();
     }
 

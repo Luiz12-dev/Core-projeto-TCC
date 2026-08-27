@@ -429,4 +429,28 @@ class AppointmentIntegrationTest {
                                         .andExpect(status().isOk());
                 }
         }
+
+        // ============================================================
+        // CICLO DE VIDA APOS O HORARIO PASSAR
+        // ============================================================
+
+        @Nested
+        @DisplayName("Ciclo de vida apos o horario passar")
+        class PastAppointmentLifecycle {
+
+                @Test
+                @DisplayName("Owner should complete an appointment whose time has already passed")
+                @WithMockUser(roles = "OWNER")
+                void shouldCompleteAppointmentInThePast() throws Exception {
+                        // Agendamento de ontem, ja em atendimento — o caso real de "concluir depois".
+                        Appointment passado = createAppointmentInDb(AppointmentStatus.IN_PROGRESS,
+                                        LocalDate.now().minusDays(1).atTime(10, 0));
+
+                        mockMvc.perform(patch("/api/appointments/" + passado.getId() + "/status")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("{\"status\":\"COMPLETED\"}"))
+                                        .andExpect(status().isOk())
+                                        .andExpect(jsonPath("$.status").value("COMPLETED"));
+                }
+        }
 }
