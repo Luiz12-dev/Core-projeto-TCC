@@ -378,7 +378,7 @@ class AppointmentServiceTest {
 
             when(appointmentRepository.findById(appointment.getId())).thenReturn(Optional.of(appointment));
 
-            AppointmentResponseDto result = appointmentService.findById(appointment.getId());
+            AppointmentResponseDto result = appointmentService.findById(appointment.getId(), "test@email.com", false);
 
             assertThat(result.id()).isEqualTo(appointment.getId());
         }
@@ -389,7 +389,7 @@ class AppointmentServiceTest {
             UUID id = UUID.randomUUID();
             when(appointmentRepository.findById(id)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> appointmentService.findById(id))
+            assertThatThrownBy(() -> appointmentService.findById(id, "test@email.com", false))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
     }

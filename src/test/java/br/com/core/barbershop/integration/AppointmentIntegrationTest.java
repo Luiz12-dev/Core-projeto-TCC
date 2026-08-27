@@ -370,4 +370,47 @@ class AppointmentIntegrationTest {
                                         .andExpect(jsonPath("$[0].clientName").value("Test Client"));
                 }
         }
+
+        // ============================================================
+        // FIND BY ID — OWNERSHIP
+        // ============================================================
+
+        @Nested
+        @DisplayName("GET /api/appointments/{id} — ownership")
+        class FindByIdOwnership {
+
+                @Test
+                @DisplayName("Client should NOT read another client's appointment — 403")
+                @WithMockUser(username = "intruso@email.com", roles = "CLIENT")
+                void clientShouldNotReadOthersAppointment() throws Exception {
+                        // createAppointmentInDb vincula ao testClient (client@test.com).
+                        Appointment alheio = createAppointmentInDb(AppointmentStatus.PENDING,
+                                        LocalDate.now().plusDays(1).atTime(10, 0));
+
+                        mockMvc.perform(get("/api/appointments/" + alheio.getId()))
+                                        .andExpect(status().isForbidden());
+                }
+
+                @Test
+                @DisplayName("Client should read their own appointment — 200")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void clientShouldReadOwnAppointment() throws Exception {
+                        Appointment proprio = createAppointmentInDb(AppointmentStatus.PENDING,
+                                        LocalDate.now().plusDays(1).atTime(10, 0));
+
+                        mockMvc.perform(get("/api/appointments/" + proprio.getId()))
+                                        .andExpect(status().isOk());
+                }
+
+                @Test
+                @DisplayName("Owner should read any appointment — 200")
+                @WithMockUser(username = "dono@email.com", roles = "OWNER")
+                void ownerShouldReadAnyAppointment() throws Exception {
+                        Appointment qualquer = createAppointmentInDb(AppointmentStatus.PENDING,
+                                        LocalDate.now().plusDays(1).atTime(10, 0));
+
+                        mockMvc.perform(get("/api/appointments/" + qualquer.getId()))
+                                        .andExpect(status().isOk());
+                }
+        }
 }

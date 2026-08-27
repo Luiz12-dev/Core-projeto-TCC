@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -215,9 +216,16 @@ public class AppointmentService {
     }
 
     @Transactional(readOnly = true)
-    public AppointmentResponseDto findById(UUID id) {
+    public AppointmentResponseDto findById(UUID id, String requesterEmail, boolean isOwner) {
         Appointment app = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + id));
+
+        // O OWNER enxerga tudo. O CLIENT so enxerga o proprio agendamento — sem
+        // esta checagem, qualquer cliente le nome, telefone e e-mail de outro.
+        if (!isOwner && !app.getClient().getEmail().equals(requesterEmail)) {
+            throw new AccessDeniedException("You can only access your own appointments");
+        }
+
         return toResponse(app);
     }
 

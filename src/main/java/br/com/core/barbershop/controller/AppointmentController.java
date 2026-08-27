@@ -9,6 +9,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -119,10 +120,22 @@ public class AppointmentController {
         return ResponseEntity.ok(all);
     }
 
-    @Operation(summary = "Find appointment by ID", description = "Authenticated users only")
+    @Operation(summary = "Find appointment by ID", description = "OWNER sees any appointment; CLIENT sees only their own")
     @GetMapping("/{id}")
-    public ResponseEntity<AppointmentResponseDto> findById(@PathVariable UUID id) {
-        AppointmentResponseDto appointment = appointmentService.findById(id);
+    @PreAuthorize("hasAnyRole('CLIENT', 'OWNER')")
+    public ResponseEntity<AppointmentResponseDto> findById(
+            @PathVariable UUID id,
+            Principal principal,
+            Authentication authentication) {
+
+        AppointmentResponseDto appointment =
+                appointmentService.findById(id, principal.getName(), isOwner(authentication));
         return ResponseEntity.ok(appointment);
+    }
+
+    /** OWNER opera sobre qualquer agendamento; CLIENT so sobre os proprios. */
+    private boolean isOwner(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_OWNER"));
     }
 }
