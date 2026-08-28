@@ -453,4 +453,28 @@ class AppointmentIntegrationTest {
                                         .andExpect(jsonPath("$.status").value("COMPLETED"));
                 }
         }
+
+        // ============================================================
+        // FORMATO DOS SLOTS
+        // ============================================================
+
+        @Nested
+        @DisplayName("GET /api/appointments/available-slots — formato")
+        class SlotFormat {
+
+                @Test
+                @DisplayName("Available slots should be formatted as HH:mm")
+                void slotsShouldBeFormattedWithoutSeconds() throws Exception {
+                        // O fixture da classe abre 08:00-12:00 e 13:00-20:00 todo dia.
+                        LocalDate amanha = LocalDate.now().plusDays(1);
+
+                        mockMvc.perform(get("/api/appointments/available-slots")
+                                        .param("date", amanha.toString())
+                                        .param("serviceId", testService.getId().toString()))
+                                        .andExpect(status().isOk())
+                                        // "08:00", nao "08:00:00" — sem segundos.
+                                        .andExpect(jsonPath("$[0]").value("08:00"))
+                                        .andExpect(jsonPath("$[1]").value("08:30"));
+                }
+        }
 }

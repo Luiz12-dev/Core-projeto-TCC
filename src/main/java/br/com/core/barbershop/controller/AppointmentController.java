@@ -35,6 +35,9 @@ import jakarta.validation.Valid;
 @Tag(name = "Appointments", description = "Appointment scheduling and management")
 public class AppointmentController {
 
+    private static final java.time.format.DateTimeFormatter HHMM =
+            java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+
     private final AppointmentService appointmentService;
 
     public AppointmentController(AppointmentService appointmentService) {
@@ -62,14 +65,18 @@ public class AppointmentController {
         return ResponseEntity.ok(history);
     }
 
-    @Operation(summary = "Available time slots", description = "Public — returns available slots for a given date and service")
+    @Operation(summary = "Available time slots", description = "Public — returns available slots as HH:mm")
     @SecurityRequirements
     @GetMapping("/available-slots")
-    public ResponseEntity<List<java.time.LocalTime>> availableSlots(
+    public ResponseEntity<List<String>> availableSlots(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam UUID serviceId) {
 
-        List<java.time.LocalTime> slots = appointmentService.getAvailableSlots(date, serviceId);
+        // Formatar e responsabilidade da borda HTTP: o servico continua
+        // devolvendo LocalTime, que e o tipo correto para a regra de negocio.
+        List<String> slots = appointmentService.getAvailableSlots(date, serviceId).stream()
+                .map(HHMM::format)
+                .toList();
         return ResponseEntity.ok(slots);
     }
 
