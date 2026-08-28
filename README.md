@@ -1,6 +1,6 @@
 # 💈 Core BarberShop API — Motor de Negócios e Agendamento
 
-API RESTful que concentra toda a lógica de negócio de um sistema de gestão de barbearias. Desenvolvida com **Java 21** e **Spring Boot 4.0**, esta API gerencia o **catálogo de serviços**, **agendamentos inteligentes**, **horários de funcionamento**, **bloqueios de agenda** e **relatórios de receita mensal**.
+API RESTful que concentra toda a lógica de negócio de um sistema de gestão de barbearias. Desenvolvida com **Java 21** e **Spring Boot 3.3.4**, esta API gerencia o **catálogo de serviços**, **agendamentos inteligentes**, **horários de funcionamento**, **bloqueios de agenda** e **relatórios de receita mensal**.
 
 > Funciona como o segundo microsserviço do sistema BarberShop — consome os tokens JWT emitidos pela [Auth API](https://github.com/Luiz12-dev/Autentica-o-projeto-TCC) para autenticação e autorização stateless, sem precisar de banco de usuários próprio.
 
@@ -11,7 +11,7 @@ API RESTful que concentra toda a lógica de negócio de um sistema de gestão de
 | Tecnologia | Versão | Descrição |
 |-----------|--------|-----------|
 | **Java** | 21 | Linguagem principal (LTS) |
-| **Spring Boot** | 4.0.0 | Framework principal |
+| **Spring Boot** | 3.3.4 | Framework principal |
 | **Spring Security** | 6.x | Autorização via JWT |
 | **Spring Data JPA** | — | Persistência e ORM |
 | **Flyway** | — | Versionamento de migrations SQL |
@@ -19,7 +19,7 @@ API RESTful que concentra toda a lógica de negócio de um sistema de gestão de
 | **JJWT** | 0.11.5 | Validação de tokens JWT (HS512) |
 | **Lombok** | — | Redução de boilerplate |
 | **Bean Validation** | 3.x | Validação de dados de entrada |
-| **SpringDoc OpenAPI** | 2.5.0 | Swagger UI interativo |
+| **SpringDoc OpenAPI** | 2.6.0 | Swagger UI interativo |
 | **Docker Compose** | — | Infraestrutura containerizada |
 | **JUnit 5** | — | Framework de testes |
 | **Mockito + AssertJ** | — | Testes unitários |
@@ -107,7 +107,8 @@ Cada endpoint possui uma política de acesso definida:
 | `/api/appointments/today` | `GET` | 🔒 OWNER | Agenda do dia |
 | `/api/appointments/revenue` | `GET` | 🔒 OWNER | Receita mensal |
 | `/api/appointments/{id}/status` | `PATCH` | 🔒 OWNER | Atualizar status |
-| `/api/appointments/{id}/cancel` | `PATCH` | 🔑🔒 Ambos | Cancelar agendamento |
+| `/api/appointments/{id}` | `GET` | 🔑🔒 Dono ou OWNER | Buscar agendamento por ID |
+| `/api/appointments/{id}/cancel` | `PATCH` | 🔑🔒 Dono ou OWNER | Cancelar agendamento |
 
 ---
 
@@ -261,8 +262,8 @@ curl -X POST http://localhost:8080/api/appointments \
   "observation": "Corte degradê",
   "status": "PENDING",
   "clientId": "...",
-  "clientName": "Luiz Otávio",
-  "clientPhone": "44999999999",
+  "clientName": "luiz@email.com",
+  "clientPhone": "00000000000",
   "serviceId": "550e8400-...",
   "serviceName": "Corte Masculino",
   "price": 35.00
@@ -278,6 +279,13 @@ curl "http://localhost:8080/api/appointments/available-slots?date=2026-04-25&ser
 ```json
 ["08:00", "08:30", "09:00", "09:30", "10:00", "13:00", "13:30", "14:00"]
 ```
+
+> **Sobre `clientName` e `clientPhone`:** o Core não tem cadastro de clientes.
+> Na primeira vez que um e-mail autenticado agenda, `AppointmentService.create`
+> cria o `Client` automaticamente a partir do `sub` do JWT, preenchendo o nome
+> com o próprio e-mail e o telefone com `"00000000000"`. Capturar nome e
+> telefone reais é trabalho pendente — hoje esses dois campos sempre carregam
+> esses valores padrão.
 
 ### Receita mensal (OWNER)
 ```bash
@@ -305,7 +313,10 @@ curl "http://localhost:8080/api/appointments/revenue?month=4&year=2026" \
 
   
 
-O projeto conta com **67 testes automatizados** organizados em duas categorias:
+O projeto conta com **74 testes automatizados** — 27 unitários, 46 de integração
+e o `contextLoads` do contexto Spring. Todos passam com `./mvnw test`, sem
+precisar do Postgres: as suítes rodam no perfil `test`, com H2 em memória e
+Flyway desativado.
 
   
 
@@ -323,7 +334,7 @@ O projeto conta com **67 testes automatizados** organizados em duas categorias:
 
   
 
-### Testes de Integração (40 testes) — `@SpringBootTest` + MockMvc + H2
+### Testes de Integração (46 testes) — `@SpringBootTest` + MockMvc + H2
 
   
 
@@ -331,13 +342,15 @@ O projeto conta com **67 testes automatizados** organizados em duas categorias:
 
 |--------|--------|-----------|
 
-| `AppointmentIntegrationTest` | 18 | RBAC (7), State Machine (5), cancelamento (3), receita (1), agenda do dia (1), 401 sem auth (1) |
+| `AppointmentIntegrationTest` | 24 | RBAC (7), State Machine (5), cancelamento (4), posse na leitura (3), ciclo apos o horario passar (1), formato dos slots (1), receita (1), agenda do dia (1), 401 sem auth (1) |
 
 | `BarberServiceIntegrationTest` | 13 | CRUD (create, list, findById, update, soft delete), RBAC (owner/client/401), duplicata (409), validação (400) |
 
 | `BlockedPeriodIntegrationTest` | 5 | Create, list, delete + RBAC |
 
 | `BusinessHoursIntegrationTest` | 4 | Create, list, update + RBAC |
+
+| `BarbershopApplicationTests` | 1 | Carga do contexto Spring no perfil `test` |
 
   
 
@@ -368,6 +381,12 @@ docker compose up -d
 ./mvnw spring-boot:run
 ```
 > O Flyway executa as 5 migrations automaticamente na primeira inicialização.
+
+> ⚠️ **Atenção ao alterar entidades:** os testes rodam com Flyway desativado e
+> `ddl-auto=create-drop` sobre H2, ou seja, o schema sob teste vem das entidades
+> JPA, não das migrations. Divergência entre uma entidade e sua migration passa
+> na suíte inteira e só estoura no boot contra o PostgreSQL, onde vale
+> `ddl-auto=validate`. Ao mexer numa entidade, altere a migration junto.
 
 ### 4. Acessar o Swagger UI
 ```
