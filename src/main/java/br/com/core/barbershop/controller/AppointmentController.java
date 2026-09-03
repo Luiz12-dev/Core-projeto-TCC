@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+
+import br.com.core.barbershop.security.jwt.AuthenticatedUser;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,9 +53,10 @@ public class AppointmentController {
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<AppointmentResponseDto> create(
             @RequestBody @Valid AppointmentRequestDto req,
-            Principal principal) {
+            Authentication authentication) {
 
-        AppointmentResponseDto appointment = appointmentService.create(req, principal.getName());
+        AppointmentResponseDto appointment =
+                appointmentService.create(req, AuthenticatedUser.de(authentication));
         return ResponseEntity.status(HttpStatus.CREATED).body(appointment);
     }
 

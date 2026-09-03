@@ -28,6 +28,7 @@ import br.com.core.barbershop.repository.BarberServiceRepository;
 import br.com.core.barbershop.repository.BlockedPeriodRepository;
 import br.com.core.barbershop.repository.BusinessHoursRepository;
 import br.com.core.barbershop.repository.ClientRepository;
+import br.com.core.barbershop.security.jwt.AuthenticatedUser;
 
 @Service
 public class AppointmentService {
@@ -55,17 +56,26 @@ public class AppointmentService {
     }
 
     @Transactional
-    public AppointmentResponseDto create(AppointmentRequestDto req, String authenticatedEmail) {
+    public AppointmentResponseDto create(AppointmentRequestDto req, AuthenticatedUser autenticado) {
         validator.validate(req);
 
-        Client client = clientRepository.findByEmail(authenticatedEmail)
+        // O Core nao tem cadastro proprio de clientes: provisiona o Client na
+        // primeira reserva, a partir dos claims do JWT. Nome e telefone so
+        // faltam em tokens emitidos antes da V2 do servico de autenticacao —
+        // nesse caso caimos no e-mail e num telefone vazio, que o painel
+        // exibe como "nao informado".
+        Client client = clientRepository.findByEmail(autenticado.email())
                 .orElseGet(() -> {
                     Client newClient = new Client();
-                    newClient.setEmail(authenticatedEmail);
-                    newClient.setUsername(authenticatedEmail); // Defaulting to email
-                    newClient.setPhone("00000000000"); // Default phone, frontend should ideally provide this
+                    newClient.setEmail(autenticado.email());
+                    newClient.setUsername(nomeOu(autenticado));
+                    newClient.setPhone(autenticado.phone());
                     return clientRepository.save(newClient);
                 });
+
+        // Usuario que agendou antes da V2 ja tem Client com dados provisorios:
+        // completa assim que o token passa a trazer os claims.
+        atualizarDadosFaltantes(client, autenticado);
 
         BarberService service = serviceRepository.findById(req.serviceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Service not found with ID: " + req.serviceId()));
@@ -81,6 +91,33 @@ public class AppointmentService {
 
         Appointment saved = appointmentRepository.save(newAppointment);
         return toResponse(saved);
+    }
+
+    private String nomeOu(AuthenticatedUser autenticado) {
+        return autenticado.name() != null && !autenticado.name().isBlank()
+                ? autenticado.name()
+                : autenticado.email();
+    }
+
+    private void atualizarDadosFaltantes(Client client, AuthenticatedUser autenticado) {
+        boolean mudou = false;
+
+        if (autenticado.name() != null && !autenticado.name().isBlank()
+                && client.getUsername().equals(client.getEmail())) {
+            client.setUsername(autenticado.name());
+            mudou = true;
+        }
+
+        if (autenticado.phone() != null && !autenticado.phone().isBlank()
+                && (client.getPhone() == null || client.getPhone().isBlank()
+                    || "00000000000".equals(client.getPhone()))) {
+            client.setPhone(autenticado.phone());
+            mudou = true;
+        }
+
+        if (mudou) {
+            clientRepository.save(client);
+        }
     }
 
     @Transactional(readOnly = true)

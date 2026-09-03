@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import br.com.core.barbershop.security.jwt.AuthenticatedUser;
 import br.com.core.barbershop.security.jwt.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -55,7 +56,10 @@ public class SecurityFilter extends OncePerRequestFilter {
             String token = parseJwt(req);
 
             if (token != null && tokenService.validateToken(token)) {
-                String username = tokenService.getUsernameFromToken(token);
+                // Principal rico: getName() ainda devolve o e-mail, entao os
+                // controllers que usam principal.getName() nao mudam, e quem
+                // precisa de nome e telefone faz o cast.
+                AuthenticatedUser usuario = tokenService.getAuthenticatedUser(token);
                 List<String> roles = tokenService.getRolesFromToken(token);
 
                 List<SimpleGrantedAuthority> authorities = roles.stream()
@@ -63,7 +67,7 @@ public class SecurityFilter extends OncePerRequestFilter {
                     .map(SimpleGrantedAuthority::new)
                     .toList();
 
-                var authentication = new UsernamePasswordAuthenticationToken(username, null, authorities);
+                var authentication = new UsernamePasswordAuthenticationToken(usuario, null, authorities);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }

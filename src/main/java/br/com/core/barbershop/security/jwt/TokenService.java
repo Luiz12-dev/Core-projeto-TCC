@@ -45,6 +45,27 @@ public class TokenService {
                 .getBody().getSubject();
     }
 
+    /**
+     * Monta o usuario autenticado a partir dos claims. name e phone so existem
+     * em tokens emitidos apos a V2 do servico de autenticacao; nos antigos
+     * vem nulos, e quem consome decide o fallback.
+     */
+    public AuthenticatedUser getAuthenticatedUser(String token) {
+        Claims claims = parse(token);
+        return new AuthenticatedUser(
+                claims.getSubject(),
+                claims.get("name", String.class),
+                claims.get("phone", String.class));
+    }
+
+    private Claims parse(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSignedKey(secret))
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
     @SuppressWarnings("unchecked")
     public List<String> getRolesFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
