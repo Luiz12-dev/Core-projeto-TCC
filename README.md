@@ -262,8 +262,8 @@ curl -X POST http://localhost:8080/api/appointments \
   "observation": "Corte degradê",
   "status": "PENDING",
   "clientId": "...",
-  "clientName": "luiz@email.com",
-  "clientPhone": "00000000000",
+  "clientName": "Luiz Otávio",
+  "clientPhone": "44999999999",
   "serviceId": "550e8400-...",
   "serviceName": "Corte Masculino",
   "price": 35.00
@@ -282,10 +282,10 @@ curl "http://localhost:8080/api/appointments/available-slots?date=2026-04-25&ser
 
 > **Sobre `clientName` e `clientPhone`:** o Core não tem cadastro de clientes.
 > Na primeira vez que um e-mail autenticado agenda, `AppointmentService.create`
-> cria o `Client` automaticamente a partir do `sub` do JWT, preenchendo o nome
-> com o próprio e-mail e o telefone com `"00000000000"`. Capturar nome e
-> telefone reais é trabalho pendente — hoje esses dois campos sempre carregam
-> esses valores padrão.
+> cria o `Client` a partir dos claims do JWT — `sub`, `name` e `phone` —, que a
+> Auth API passou a emitir. Registros criados antes disso ficaram com o e-mail
+> no lugar do nome e `"00000000000"` no telefone; são completados assim que o
+> cliente agenda de novo com um token que traga os claims.
 
 ### Receita mensal (OWNER)
 ```bash
