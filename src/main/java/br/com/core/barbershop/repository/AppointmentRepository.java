@@ -23,20 +23,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
         @Param("end") LocalDateTime end
     );
 
-    @Query(
-        value = """
-                SELECT COUNT(*)>0
-                FROM appointments a
-                JOIN services s ON a.service_id = s.id
-                WHERE a.status NOT IN ('CANCELLED', 'COMPLETED')
-                AND a.date_time < :newEndTime
-                AND (a.date_time + make_interval(mins => s.duration_min)) > :newStartTime
-                """, nativeQuery = true)
-    boolean existsConflictingAppointment(
-        @Param("newStartTime") LocalDateTime newStartTime,
-        @Param("newEndTime") LocalDateTime newEndTime
-    );
-
     @Query("SELECT a FROM Appointment a WHERE a.status = :status AND a.dateTime >= :start AND a.dateTime < :end")
     List<Appointment> findByStatusAndDateRange(
         @Param("status") AppointmentStatus status,

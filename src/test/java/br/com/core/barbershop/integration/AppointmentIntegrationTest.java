@@ -1,7 +1,9 @@
 package br.com.core.barbershop.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -10,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import java.time.LocalTime;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -28,8 +31,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import br.com.core.barbershop.domain.Appointment;
 import br.com.core.barbershop.domain.BarberService;
+import br.com.core.barbershop.domain.BlockedPeriod;
 import br.com.core.barbershop.domain.BusinessHours;
 import br.com.core.barbershop.domain.Client;
+import br.com.core.barbershop.dto.AppointmentRequestDto;
 import br.com.core.barbershop.enuns.AppointmentStatus;
 import br.com.core.barbershop.repository.AppointmentRepository;
 import br.com.core.barbershop.repository.BarberServiceRepository;
@@ -475,6 +480,212 @@ class AppointmentIntegrationTest {
                                         // "08:00", nao "08:00:00" — sem segundos.
                                         .andExpect(jsonPath("$[0]").value("08:00"))
                                         .andExpect(jsonPath("$[1]").value("08:30"));
+                }
+        }
+
+        // ============================================================
+        // POST /api/appointments — CRIACAO
+        // ============================================================
+
+        @Nested
+        @DisplayName("POST /api/appointments")
+        class CreateAppointment {
+
+                /** Amanha as 10:00 — dentro do periodo 08:00-12:00 do fixture. */
+                private LocalDateTime amanhaAs(int hora) {
+                        return LocalDate.now().plusDays(1).atTime(hora, 0);
+                }
+
+                private String corpo(LocalDateTime quando) throws Exception {
+                        return objectMapper.writeValueAsString(
+                                        new AppointmentRequestDto(testService.getId(), "sem observacao", quando));
+                }
+
+                @Test
+                @DisplayName("Client books an available slot — 201")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void clientShouldBook() throws Exception {
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(amanhaAs(10))))
+                                        .andExpect(status().isCreated())
+                                        .andExpect(jsonPath("$.status").value("PENDING"))
+                                        .andExpect(jsonPath("$.serviceName").value("Corte Masculino"));
+
+                        assertThat(appointmentRepository.findAll()).hasSize(1);
+                }
+
+                @Test
+                @DisplayName("Provisions the client from the JWT claims on first booking - 201")
+                @WithMockUser(username = "novo@email.com", roles = "CLIENT")
+                void shouldProvisionClientOnFirstBooking() throws Exception {
+                        // Sob WithMockUser o principal e uma String, entao name e phone
+                        // vem nulos e o fallback e o proprio e-mail.
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(amanhaAs(10))))
+                                        .andExpect(status().isCreated());
+
+                        assertThat(clientRepository.findByEmail("novo@email.com")).isPresent();
+                }
+
+                @Test
+                @DisplayName("Rejects a slot already taken - 400")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectOverlappingSlot() throws Exception {
+                        createAppointmentInDb(AppointmentStatus.CONFIRMED, amanhaAs(10));
+
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(amanhaAs(10))))
+                                        .andExpect(status().isBadRequest())
+                                        .andExpect(jsonPath("$.message", containsString("already an appointment")));
+                }
+
+                @Test
+                @DisplayName("Rejects a slot that overlaps only partially - 400")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectPartialOverlap() throws Exception {
+                        // Servico de 30 min as 10:00 ocupa ate 10:30; pedir 10:15 colide.
+                        createAppointmentInDb(AppointmentStatus.PENDING, amanhaAs(10));
+
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(LocalDate.now().plusDays(1).atTime(10, 15))))
+                                        .andExpect(status().isBadRequest());
+                }
+
+                @Test
+                @DisplayName("Allows a slot freed by a cancellation - 201")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldAllowSlotOfCancelledAppointment() throws Exception {
+                        // Cancelado nao ocupa a agenda.
+                        createAppointmentInDb(AppointmentStatus.CANCELLED, amanhaAs(10));
+
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(amanhaAs(10))))
+                                        .andExpect(status().isCreated());
+                }
+
+                @Test
+                @DisplayName("Rejects a time outside business hours - 400")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectOutsideBusinessHours() throws Exception {
+                        // O fixture abre 08:00-12:00 e 13:00-20:00; 12:30 cai no almoco.
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(LocalDate.now().plusDays(1).atTime(12, 30))))
+                                        .andExpect(status().isBadRequest())
+                                        .andExpect(jsonPath("$.message", containsString("business hours")));
+                }
+
+                @Test
+                @DisplayName("Rejects a booking that would run past closing - 400")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectBookingPastClosing() throws Exception {
+                        // 11:45 + 30 min ultrapassa o fechamento das 12:00: precisa caber inteiro.
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(LocalDate.now().plusDays(1).atTime(11, 45))))
+                                        .andExpect(status().isBadRequest());
+                }
+
+                @Test
+                @DisplayName("Rejects a day the barbershop is closed - 400")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectClosedDay() throws Exception {
+                        businessHoursRepository.deleteAll();
+
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(amanhaAs(10))))
+                                        .andExpect(status().isBadRequest())
+                                        .andExpect(jsonPath("$.message", containsString("closed")));
+                }
+
+                @Test
+                @DisplayName("Rejects a time inside a blocked period - 400")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectBlockedPeriod() throws Exception {
+                        blockedPeriodRepository.save(BlockedPeriod.builder()
+                                        .startDateTime(amanhaAs(9))
+                                        .endDateTime(amanhaAs(11))
+                                        .reason("Manutencao")
+                                        .build());
+
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(amanhaAs(10))))
+                                        .andExpect(status().isBadRequest())
+                                        .andExpect(jsonPath("$.message", containsString("blocked")));
+                }
+
+                @Test
+                @DisplayName("Rejects less than 30 minutes of lead time - 400")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectShortNotice() throws Exception {
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(LocalDateTime.now().plusMinutes(10))))
+                                        .andExpect(status().isBadRequest())
+                                        .andExpect(jsonPath("$.message", containsString("30 minutes")));
+                }
+
+                @Test
+                @DisplayName("Rejects an inactive service - 400")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectInactiveService() throws Exception {
+                        testService.setActive(false);
+                        barberServiceRepository.save(testService);
+
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(amanhaAs(10))))
+                                        .andExpect(status().isBadRequest())
+                                        .andExpect(jsonPath("$.message", containsString("inactive")));
+                }
+
+                @Test
+                @DisplayName("Rejects an unknown service - 404")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectUnknownService() throws Exception {
+                        String payload = objectMapper.writeValueAsString(
+                                        new AppointmentRequestDto(UUID.randomUUID(), null, amanhaAs(10)));
+
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(payload))
+                                        .andExpect(status().isNotFound());
+                }
+
+                @Test
+                @DisplayName("Rejects a date in the past at the DTO level - 400")
+                @WithMockUser(username = "client@test.com", roles = "CLIENT")
+                void shouldRejectPastDate() throws Exception {
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(LocalDateTime.now().minusDays(1))))
+                                        .andExpect(status().isBadRequest());
+                }
+
+                @Test
+                @DisplayName("Owner cannot book - 403")
+                @WithMockUser(username = "dono@email.com", roles = "OWNER")
+                void ownerShouldNotBook() throws Exception {
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(amanhaAs(10))))
+                                        .andExpect(status().isForbidden());
+                }
+
+                @Test
+                @DisplayName("Unauthenticated cannot book - 401")
+                void unauthenticatedShouldNotBook() throws Exception {
+                        mockMvc.perform(post("/api/appointments")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(corpo(amanhaAs(10))))
+                                        .andExpect(status().isUnauthorized());
                 }
         }
 }

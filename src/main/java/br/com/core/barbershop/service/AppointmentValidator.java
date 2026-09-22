@@ -55,9 +55,32 @@ public class AppointmentValidator {
         if (blockedPeriodRepository.existsConflictingBlock(appointmentDate, endTime)) {
             throw new BusinessRuleException("This time slot is blocked by the owner");
         }
-        if (appointmentRepository.existsConflictingAppointment(appointmentDate, endTime)) {
+        if (conflitaComAgendamentoExistente(appointmentDate, endTime)) {
             throw new BusinessRuleException("Time slot not available — there is already an appointment in this period");
         }
+    }
+
+    /**
+     * Sobreposicao calculada em Java, e nao em SQL.
+     *
+     * A versao anterior usava make_interval, exclusivo do PostgreSQL, o que
+     * tornava impossivel testar a criacao de agendamento no H2 — o caminho
+     * mais importante do sistema ficava sem cobertura. getAvailableSlots ja
+     * resolvia o mesmo problema assim, entao as duas checagens passam a usar
+     * a mesma logica.
+     *
+     * A janela comeca um dia antes porque a duracao do servico so e conhecida
+     * depois de carregar cada agendamento: um que comece na vespera e avance
+     * sobre o horario pedido precisa entrar na lista de candidatos.
+     */
+    private boolean conflitaComAgendamentoExistente(LocalDateTime inicio, LocalDateTime fim) {
+        return appointmentRepository.findActiveByDateRange(inicio.minusDays(1), fim).stream()
+                .anyMatch(existente -> {
+                    LocalDateTime existenteInicio = existente.getDateTime();
+                    LocalDateTime existenteFim = existenteInicio
+                            .plusMinutes(existente.getService().getDurationMin());
+                    return existenteInicio.isBefore(fim) && existenteFim.isAfter(inicio);
+                });
     }
 
     private void validateBusinessHours(LocalDateTime start, LocalDateTime end) {

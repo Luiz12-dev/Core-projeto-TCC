@@ -33,6 +33,9 @@ import br.com.core.barbershop.security.jwt.AuthenticatedUser;
 @Service
 public class AppointmentService {
 
+    /** Marcador para telefone ausente; ver telefoneOu e atualizarDadosFaltantes. */
+    private static final String TELEFONE_NAO_INFORMADO = "00000000000";
+
     private final AppointmentRepository appointmentRepository;
     private final AppointmentValidator validator;
     private final ClientRepository clientRepository;
@@ -69,7 +72,7 @@ public class AppointmentService {
                     Client newClient = new Client();
                     newClient.setEmail(autenticado.email());
                     newClient.setUsername(nomeOu(autenticado));
-                    newClient.setPhone(autenticado.phone());
+                    newClient.setPhone(telefoneOu(autenticado));
                     return clientRepository.save(newClient);
                 });
 
@@ -93,6 +96,20 @@ public class AppointmentService {
         return toResponse(saved);
     }
 
+    /**
+     * Client.phone e NOT NULL na V1. Tokens emitidos antes da V2 do servico de
+     * autenticacao nao trazem o claim, entao gravamos o marcador historico em
+     * vez de nulo — sem isto, a primeira reserva desses usuarios estoura 500.
+     *
+     * atualizarDadosFaltantes reconhece este mesmo marcador e substitui pelo
+     * telefone real assim que o cliente volta com um token que o carregue.
+     */
+    private String telefoneOu(AuthenticatedUser autenticado) {
+        return autenticado.phone() != null && !autenticado.phone().isBlank()
+                ? autenticado.phone()
+                : TELEFONE_NAO_INFORMADO;
+    }
+
     private String nomeOu(AuthenticatedUser autenticado) {
         return autenticado.name() != null && !autenticado.name().isBlank()
                 ? autenticado.name()
@@ -110,7 +127,7 @@ public class AppointmentService {
 
         if (autenticado.phone() != null && !autenticado.phone().isBlank()
                 && (client.getPhone() == null || client.getPhone().isBlank()
-                    || "00000000000".equals(client.getPhone()))) {
+                    || TELEFONE_NAO_INFORMADO.equals(client.getPhone()))) {
             client.setPhone(autenticado.phone());
             mudou = true;
         }
