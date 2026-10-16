@@ -46,7 +46,7 @@ src/main/java/br/com/core/barbershop/
 │   ├── BusinessHours      # Horário de funcionamento por dia
 │   └── BlockedPeriod      # Período bloqueado pelo owner
 ├── dto/                   # Java Records (request/response)
-├── enuns/                 # AppointmentStatus (5 estados)
+├── enums/                 # AppointmentStatus (5 estados)
 ├── exception/             # Exceções + GlobalExceptionHandler
 ├── repository/            # Spring Data JPA Repositories
 ├── security/
@@ -61,7 +61,7 @@ src/main/java/br/com/core/barbershop/
 └── BarbershopApplication.java
 
 src/main/resources/
-└── db/migration/          # 5 Flyway migrations (V1 a V5)
+└── db/migration/          # 6 Flyway migrations (V1 a V6)
 ```
 
 ---
@@ -213,6 +213,7 @@ Antes de criar um agendamento, o sistema valida:
 | `V3` | Tabela `appointments` + FKs + índices (`client_id`, `date_time`, `status`) |
 | `V4` | Tabela `business_hours` + constraint unique (`day_of_week` + `open_time`) |
 | `V5` | Tabela `blocked_periods` + índice composto no range de datas |
+| `V6` | Índice único parcial em `appointments(date_time)` para status ativos — impede duas reservas simultâneas no mesmo horário (a segunda recebe 409) |
 
 ---
 
@@ -313,14 +314,14 @@ curl "http://localhost:8080/api/appointments/revenue?month=4&year=2026" \
 
   
 
-O projeto conta com **74 testes automatizados** — 27 unitários, 46 de integração
+O projeto conta com **91 testes automatizados** — 29 unitários, 61 de integração
 e o `contextLoads` do contexto Spring. Todos passam com `./mvnw test`, sem
 precisar do Postgres: as suítes rodam no perfil `test`, com H2 em memória e
 Flyway desativado.
 
   
 
-### Testes Unitários (27 testes) — Mockito + AssertJ
+### Testes Unitários (29 testes) — Mockito + AssertJ
 
   
 
@@ -328,13 +329,13 @@ Flyway desativado.
 
 |--------|--------|-----------|
 
-| `AppointmentServiceTest` | 18 | State Machine (8 transições), cancelamento (3), receita (2), histórico (2), agenda do dia (1), busca por ID (2) |
+| `AppointmentServiceTest` | 20 | State Machine (8 transições), cancelamento (3), receita (2), histórico (2), agenda do dia (1), busca por ID (2), reserva simultânea (2) |
 
 | `BarberServiceServiceTest` | 9 | CRUD completo (create, findAll, findById, update, deactivate) + erro duplicado + not found |
 
   
 
-### Testes de Integração (46 testes) — `@SpringBootTest` + MockMvc + H2
+### Testes de Integração (61 testes) — `@SpringBootTest` + MockMvc + H2
 
   
 
@@ -342,7 +343,7 @@ Flyway desativado.
 
 |--------|--------|-----------|
 
-| `AppointmentIntegrationTest` | 24 | RBAC (7), State Machine (5), cancelamento (4), posse na leitura (3), ciclo apos o horario passar (1), formato dos slots (1), receita (1), agenda do dia (1), 401 sem auth (1) |
+| `AppointmentIntegrationTest` | 39 | criação de agendamento (15), RBAC (7), State Machine (5), cancelamento (4), posse na leitura (3), ciclo apos o horario passar (1), formato dos slots (1), receita (1), agenda do dia (1), 401 sem auth (1) |
 
 | `BarberServiceIntegrationTest` | 13 | CRUD (create, list, findById, update, soft delete), RBAC (owner/client/401), duplicata (409), validação (400) |
 
@@ -403,6 +404,12 @@ Para testar endpoints protegidos:
 ./mvnw test
 ```
 
+O JaCoCo gera o relatório de cobertura na mesma execução, em `target/site/jacoco/index.html`.
+
+> O índice da `V6` não existe nos testes: eles rodam com Flyway desativado, e o H2
+> não aceita índice parcial. O teste unitário cobre a tradução da violação em 409;
+> o índice em si só é exercitado contra o Postgres.
+
 ---
 
 ## 🔒 Fluxo de Segurança
@@ -431,9 +438,7 @@ SecurityFilter (OncePerRequestFilter)
 
 - [ ] Endpoint de refresh token na Core API
 - [ ] Notificações por e-mail/SMS para confirmação de agendamento
-- [ ] Painel de métricas com Spring Actuator
 - [ ] Rate limiting para proteção contra abuso
-- [ ] CI/CD com GitHub Actions para rodar os 67 testes automaticamente
 - [ ] Paginação com `Pageable` nos endpoints de listagem
 
 ---
