@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,7 @@ import br.com.core.barbershop.dto.AppointmentResponseDto;
 import br.com.core.barbershop.dto.RevenueResponseDto;
 import br.com.core.barbershop.enuns.AppointmentStatus;
 import br.com.core.barbershop.exception.BusinessRuleException;
+import br.com.core.barbershop.exception.DuplicateResourceException;
 import br.com.core.barbershop.exception.ResourceNotFoundException;
 import br.com.core.barbershop.repository.AppointmentRepository;
 import br.com.core.barbershop.repository.BarberServiceRepository;
@@ -35,6 +38,9 @@ public class AppointmentService {
 
     /** Marcador para telefone ausente; ver telefoneOu e atualizarDadosFaltantes. */
     private static final String TELEFONE_NAO_INFORMADO = "00000000000";
+
+    /** Indice unico parcial criado na V6; ver reservar(). */
+    static final String INDICE_HORARIO_ATIVO = "uq_appointments_horario_ativo";
 
     private final AppointmentRepository appointmentRepository;
     private final AppointmentValidator validator;
@@ -92,8 +98,30 @@ public class AppointmentService {
                 .price(service.getPrice())
                 .build();
 
-        Appointment saved = appointmentRepository.save(newAppointment);
-        return toResponse(saved);
+        return toResponse(reservar(newAppointment));
+    }
+
+    /**
+     * O validador consulta e depois grava, entao duas requisicoes simultaneas
+     * para o mesmo horario passam pela consulta juntas. Quem chega em segundo
+     * esbarra no indice da V6. O flush imediato faz a violacao estourar aqui,
+     * e nao no commit, onde ja nao daria para traduzi-la em 409.
+     */
+    private Appointment reservar(Appointment appointment) {
+        try {
+            return appointmentRepository.saveAndFlush(appointment);
+        } catch (DataIntegrityViolationException ex) {
+            if (violouIndiceDeHorario(ex)) {
+                throw new DuplicateResourceException(
+                        "Time slot was just booked by another client — choose another time");
+            }
+            throw ex;
+        }
+    }
+
+    private boolean violouIndiceDeHorario(DataIntegrityViolationException ex) {
+        return ex.getCause() instanceof ConstraintViolationException violacao
+                && INDICE_HORARIO_ATIVO.equalsIgnoreCase(violacao.getConstraintName());
     }
 
     /**

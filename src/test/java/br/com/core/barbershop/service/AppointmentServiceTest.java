@@ -8,12 +8,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,20 +23,24 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import br.com.core.barbershop.domain.Appointment;
 import br.com.core.barbershop.domain.BarberService;
 import br.com.core.barbershop.domain.Client;
+import br.com.core.barbershop.dto.AppointmentRequestDto;
 import br.com.core.barbershop.dto.AppointmentResponseDto;
 import br.com.core.barbershop.dto.RevenueResponseDto;
 import br.com.core.barbershop.enuns.AppointmentStatus;
 import br.com.core.barbershop.exception.BusinessRuleException;
+import br.com.core.barbershop.exception.DuplicateResourceException;
 import br.com.core.barbershop.exception.ResourceNotFoundException;
 import br.com.core.barbershop.repository.AppointmentRepository;
 import br.com.core.barbershop.repository.BarberServiceRepository;
 import br.com.core.barbershop.repository.BlockedPeriodRepository;
 import br.com.core.barbershop.repository.BusinessHoursRepository;
 import br.com.core.barbershop.repository.ClientRepository;
+import br.com.core.barbershop.security.jwt.AuthenticatedUser;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AppointmentService Unit Tests")
@@ -394,6 +400,48 @@ class AppointmentServiceTest {
 
             assertThatThrownBy(() -> appointmentService.findById(id, "test@email.com", false))
                     .isInstanceOf(ResourceNotFoundException.class);
+        }
+    }
+    @Nested
+    @DisplayName("create() — concurrent booking")
+    class ConcurrentBooking {
+
+        private AppointmentRequestDto prepararReserva() {
+            Client client = buildClient("test@email.com");
+            BarberService service = buildService("Corte", new BigDecimal("35.00"), 30);
+            when(clientRepository.findByEmail("test@email.com")).thenReturn(Optional.of(client));
+            when(serviceRepository.findById(service.getId())).thenReturn(Optional.of(service));
+            return new AppointmentRequestDto(service.getId(), null, LocalDateTime.now().plusDays(1));
+        }
+
+        private DataIntegrityViolationException violacao(String constraint) {
+            return new DataIntegrityViolationException("could not execute statement",
+                    new ConstraintViolationException("duplicate key", new SQLException(), constraint));
+        }
+
+        @Test
+        @DisplayName("Should answer 409 when another client took the same slot first")
+        void shouldTranslateSlotIndexViolationToConflict() {
+            AppointmentRequestDto req = prepararReserva();
+            when(appointmentRepository.saveAndFlush(any()))
+                    .thenThrow(violacao(AppointmentService.INDICE_HORARIO_ATIVO));
+
+            assertThatThrownBy(() -> appointmentService.create(req,
+                    new AuthenticatedUser("test@email.com", "Test User", "44999999999")))
+                    .isInstanceOf(DuplicateResourceException.class)
+                    .hasMessageContaining("just booked");
+        }
+
+        @Test
+        @DisplayName("Should not disguise other integrity violations as a slot conflict")
+        void shouldRethrowOtherIntegrityViolations() {
+            AppointmentRequestDto req = prepararReserva();
+            when(appointmentRepository.saveAndFlush(any()))
+                    .thenThrow(violacao("fk_appointment_service"));
+
+            assertThatThrownBy(() -> appointmentService.create(req,
+                    new AuthenticatedUser("test@email.com", "Test User", "44999999999")))
+                    .isInstanceOf(DataIntegrityViolationException.class);
         }
     }
 }
