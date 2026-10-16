@@ -35,7 +35,7 @@ import br.com.core.barbershop.domain.BlockedPeriod;
 import br.com.core.barbershop.domain.BusinessHours;
 import br.com.core.barbershop.domain.Client;
 import br.com.core.barbershop.dto.AppointmentRequestDto;
-import br.com.core.barbershop.enuns.AppointmentStatus;
+import br.com.core.barbershop.enums.AppointmentStatus;
 import br.com.core.barbershop.repository.AppointmentRepository;
 import br.com.core.barbershop.repository.BarberServiceRepository;
 import br.com.core.barbershop.repository.BlockedPeriodRepository;

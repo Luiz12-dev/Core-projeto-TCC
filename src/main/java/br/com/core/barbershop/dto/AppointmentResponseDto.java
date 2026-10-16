@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import br.com.core.barbershop.enuns.AppointmentStatus;
+import br.com.core.barbershop.enums.AppointmentStatus;
 
 public record AppointmentResponseDto(
 

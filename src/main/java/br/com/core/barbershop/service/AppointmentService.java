@@ -22,7 +22,7 @@ import br.com.core.barbershop.domain.Client;
 import br.com.core.barbershop.dto.AppointmentRequestDto;
 import br.com.core.barbershop.dto.AppointmentResponseDto;
 import br.com.core.barbershop.dto.RevenueResponseDto;
-import br.com.core.barbershop.enuns.AppointmentStatus;
+import br.com.core.barbershop.enums.AppointmentStatus;
 import br.com.core.barbershop.exception.BusinessRuleException;
 import br.com.core.barbershop.exception.DuplicateResourceException;
 import br.com.core.barbershop.exception.ResourceNotFoundException;

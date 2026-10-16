@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import br.com.core.barbershop.domain.Appointment;
-import br.com.core.barbershop.enuns.AppointmentStatus;
+import br.com.core.barbershop.enums.AppointmentStatus;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
 

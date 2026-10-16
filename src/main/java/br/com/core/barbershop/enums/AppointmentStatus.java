@@ -1,4 +1,4 @@
-package br.com.core.barbershop.enuns;
+package br.com.core.barbershop.enums;
 
 public enum AppointmentStatus {
     PENDING,

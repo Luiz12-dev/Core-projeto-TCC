@@ -9,7 +9,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import br.com.core.barbershop.enuns.AppointmentStatus;
+import br.com.core.barbershop.enums.AppointmentStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
