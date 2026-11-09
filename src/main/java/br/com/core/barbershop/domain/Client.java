@@ -42,7 +42,7 @@ public class Client {
     private UUID id;
     
     @NotBlank(message = "The username cannot be empty")
-    @Column(name = "usernames", nullable = false, length = 100)
+    @Column(nullable = false, length = 100)
     private String username;
 
     @NotBlank(message = "The email cannot be empty")

@@ -61,7 +61,7 @@ src/main/java/br/com/core/barbershop/
 └── BarbershopApplication.java
 
 src/main/resources/
-└── db/migration/          # 6 Flyway migrations (V1 a V6)
+└── db/migration/          # 7 Flyway migrations (V1 a V7)
 ```
 
 ---
@@ -168,7 +168,7 @@ Antes de criar um agendamento, o sistema valida:
 │     clients      │       │     services     │
 ├──────────────────┤       ├──────────────────┤
 │ id (UUID, PK)    │       │ id (UUID, PK)    │
-│ usernames        │       │ service_name (UQ)│
+│ username         │       │ service_name (UQ)│
 │ email (UQ)       │       │ description      │
 │ phone_number     │       │ price            │
 │ created_at       │       │ duration_min     │
@@ -214,6 +214,7 @@ Antes de criar um agendamento, o sistema valida:
 | `V4` | Tabela `business_hours` + constraint unique (`day_of_week` + `open_time`) |
 | `V5` | Tabela `blocked_periods` + índice composto no range de datas |
 | `V6` | Índice único parcial em `appointments(date_time)` para status ativos — impede duas reservas simultâneas no mesmo horário (a segunda recebe 409) |
+| `V7` | Renomeia `clients.usernames` para `clients.username` (a coluna guarda um único nome) |
 
 ---
 
@@ -381,7 +382,7 @@ docker compose up -d
 ```bash
 ./mvnw spring-boot:run
 ```
-> O Flyway executa as 5 migrations automaticamente na primeira inicialização.
+> O Flyway executa as 7 migrations automaticamente na primeira inicialização.
 
 > ⚠️ **Atenção ao alterar entidades:** os testes rodam com Flyway desativado e
 > `ddl-auto=create-drop` sobre H2, ou seja, o schema sob teste vem das entidades
